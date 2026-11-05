@@ -120,7 +120,7 @@ First you need to create a Discord bot user, which you can do by following the i
     // Makes the bot hide the username prefix for messages that start
     // with one of these characters (commands):
     "commandCharacters": ["!", "."],
-    "ircStatusNotices": true, // Enables notifications in Discord when people join/part in the relevant IRC channel
+    "ircStatusNotices": true, // Enables notifications in Discord when people join/part/quit, change nicks or change the topic in the relevant IRC channel
     // Or enable them only for some channels (IRC channel, Discord channel or Discord channel ID, as in channelMapping):
     // "ircStatusNotices": ["#irc", "#discord", "1234567890"],
     "ignoreUsers": {

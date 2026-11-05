@@ -191,6 +191,67 @@ describe('Bot Events', function () {
     bot.channelUsers.should.deep.equal({ '#channel': channelNicks });
   });
 
+  context('topic changes', function () {
+    const topicMessage = { command: 'TOPIC' };
+
+    it('should send topic changes to discord', function () {
+      const bot = createBot({ ...config, ircStatusNotices: true });
+      bot.connect();
+      bot.ircClient.emit('topic', '#IRC', 'Meeting on Thursday', 'user', topicMessage);
+      bot.sendExactToDiscord.should.have.been.calledOnceWithExactly(
+        '#irc',
+        '*user* changed the topic to: Meeting on Thursday'
+      );
+    });
+
+    it('should not send the topic shown when joining a channel', function () {
+      const bot = createBot({ ...config, ircStatusNotices: true });
+      bot.connect();
+      bot.ircClient.emit('topic', '#irc', 'Old topic', 'user', { command: 'rpl_topicwhotime' });
+      bot.sendExactToDiscord.should.not.have.been.called;
+    });
+
+    it('should announce a cleared topic', function () {
+      const bot = createBot({ ...config, ircStatusNotices: true });
+      bot.connect();
+      bot.ircClient.emit('topic', '#irc', '', 'user', topicMessage);
+      bot.sendExactToDiscord.should.have.been.calledOnceWithExactly('#irc', '*user* cleared the topic');
+    });
+
+    it('should convert IRC formatting and not allow pings', function () {
+      const bot = createBot({ ...config, ircStatusNotices: true });
+      bot.connect();
+      bot.ircClient.emit('topic', '#irc', '\u0002Hi\u0002 @everyone', 'user', topicMessage);
+      bot.sendExactToDiscord.should.have.been.calledOnceWithExactly(
+        '#irc',
+        '*user* changed the topic to: **Hi** @​everyone'
+      );
+    });
+
+    it('should not send topic changes when status notices are disabled', function () {
+      this.bot.ircClient.emit('topic', '#irc', 'New topic', 'user', topicMessage);
+      this.bot.sendExactToDiscord.should.not.have.been.called;
+    });
+
+    it('should respect per-channel status notices', function () {
+      const bot = createBot({ ...config, ircStatusNotices: ['#otherirc'] });
+      bot.connect();
+      bot.ircClient.emit('topic', '#irc', 'New topic', 'user', topicMessage);
+      bot.ircClient.emit('topic', '#otherirc', 'New topic', 'user', topicMessage);
+      bot.sendExactToDiscord.should.have.been.calledOnceWithExactly(
+        '#otherirc',
+        '*user* changed the topic to: New topic'
+      );
+    });
+
+    it('should ignore topic changes by ignored IRC users', function () {
+      const bot = createBot({ ...config, ircStatusNotices: true });
+      bot.connect();
+      bot.ircClient.emit('topic', '#irc', 'New topic', 'irc_ignored_user', topicMessage);
+      bot.sendExactToDiscord.should.not.have.been.called;
+    });
+  });
+
   context('with per-channel ircStatusNotices', function () {
     const joinText = '*user* has joined the channel';
     const setup = (channels) => {
