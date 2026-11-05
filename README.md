@@ -136,6 +136,16 @@ First you need to create a Discord bot user, which you can do by following the i
 
 The `ircOptions` object is passed directly to irc-upd ([available options](https://node-irc-upd.readthedocs.io/en/latest/API.html#irc.Client)).
 
+### Reconnecting
+If the IRC connection is lost, the bot keeps trying to reconnect forever, waiting 5 seconds at first and
+doubling the wait after every failed attempt up to 5 minutes. The wait is reset once the connection succeeds.
+Reconnecting to Discord is handled by discord.js; a failed Discord login on startup is retried the same way
+(except for an invalid token or missing intents, which are logged as errors).
+
+Errors when sending messages to Discord are logged instead of crashing the bot. It's still a good idea
+to run the bot with a process manager such as [pm2](https://pm2.keymetrics.io/) or systemd, so it
+gets restarted if it ever exits.
+
 To retrieve a discord channel ID, write `\#channel` on the relevant server – it should produce something of the form `<#1234567890>`, which you can then use in the `channelMapping` config.
 
 ### Webhooks
