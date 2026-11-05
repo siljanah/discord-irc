@@ -48,13 +48,12 @@ describe('Bot', function () {
     // modified variants of https://github.com/discordjs/discord.js/blob/stable/src/client/ClientDataManager.js
     // (for easier stubbing)
     this.addUser = function (user, member = null) {
-      const userObj = new discord.User(this.bot.discord, user);
-      // also set guild members
-      const guildMember = { ...(member || user), user: userObj };
+      // also set guild members, passing raw user data like the Discord API does
+      const guildMember = { ...(member || user), user };
       guildMember.nick = guildMember.nickname; // nick => nickname in Discord API
       const memberObj = new discord.GuildMember(this.bot.discord, guildMember, this.guild);
-      this.guild.members.cache.set(userObj.id, memberObj);
-      this.bot.discord.users.cache.set(userObj.id, userObj);
+      this.guild.members.cache.set(memberObj.user.id, memberObj);
+      this.bot.discord.users.cache.set(memberObj.user.id, memberObj.user);
       return memberObj;
     };
 
@@ -676,6 +675,50 @@ describe('Bot', function () {
 
     this.bot.sendToDiscord(username, '#irc', text);
     this.sendStub.should.have.been.calledWith(expected);
+  });
+
+  context('Discord display names', function () {
+    const ircUser = 'ircuser';
+
+    it('should convert display name mentions from IRC', function () {
+      const testUser = this.addUser({ username: 'matti.m_92', id: '123', global_name: 'Matti' });
+      this.bot.sendToDiscord(ircUser, '#irc', 'moi @matti!');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** moi ${testUser}!`);
+    });
+
+    it('should convert colon-initial display name mentions from IRC', function () {
+      const testUser = this.addUser({ username: 'matti.m_92', id: '123', global_name: 'Matti' });
+      this.bot.sendToDiscord(ircUser, '#irc', 'Matti: tuu tänne');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** ${testUser} tuu tänne`);
+    });
+
+    it('should convert partial display name mentions from IRC', function () {
+      const testUser = this.addUser({ username: 'matti.m_92', id: '123', global_name: 'Matti' });
+      this.bot.sendToDiscord(ircUser, '#irc', '@Mattihei');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** ${testUser}hei`);
+    });
+
+    it('should prefer the name shown on IRC over another user\'s username', function () {
+      this.addUser({ username: 'matti', id: '124', global_name: 'Bob' });
+      const shownAsMatti = this.addUser({ username: 'matti.m_92', id: '123', global_name: 'Matti' });
+      this.bot.sendToDiscord(ircUser, '#irc', '@matti');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** ${shownAsMatti}`);
+    });
+
+    it('should prefer server nicknames over display names', function () {
+      this.addUser({ username: 'user1', id: '124', global_name: 'Masa' });
+      const nickUser = this.addUser({
+        username: 'user2', id: '123', global_name: 'Other', nickname: 'Masa'
+      });
+      this.bot.sendToDiscord(ircUser, '#irc', '@Masa');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** ${nickUser}`);
+    });
+
+    it('should still convert username mentions for users with a display name', function () {
+      const testUser = this.addUser({ username: 'matti.m_92', id: '123', global_name: 'Matti' });
+      this.bot.sendToDiscord(ircUser, '#irc', '@matti.m_92');
+      this.sendStub.should.have.been.calledWith(`**<${ircUser}>** ${testUser}`);
+    });
   });
 
   it('should convert username mentions from IRC even if nickname differs', function () {
@@ -1301,6 +1344,14 @@ describe('Bot', function () {
         const memberObj = {};
         this.addUser(userObj, memberObj);
         this.bot.getDiscordAvatar('nickless', '#irc').should.equal('https://cdn.discordapp.com/avatars/124/nickless-avatar.png?size=128');
+      });
+
+      it('should match a user\'s display name', function () {
+        const userObj = {
+          id: 126, username: 'matti.m_92', global_name: 'Matti', avatar: 'matti-avatar'
+        };
+        this.addUser(userObj);
+        this.bot.getDiscordAvatar('matti', '#irc').should.equal('https://cdn.discordapp.com/avatars/126/matti-avatar.png?size=128');
       });
 
       it('should handle users without avatars', function () {
