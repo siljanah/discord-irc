@@ -191,6 +191,67 @@ describe('Bot Events', function () {
     bot.channelUsers.should.deep.equal({ '#channel': channelNicks });
   });
 
+  context('with per-channel ircStatusNotices', function () {
+    const joinText = '*user* has joined the channel';
+    const setup = (channels) => {
+      const bot = createBot({ ...config, ircStatusNotices: channels });
+      bot.connect();
+      ['#irc', '#otherirc', '#channelforid'].forEach(channel =>
+        bot.ircClient.emit('names', channel, { [bot.nickname]: '' }));
+      return bot;
+    };
+
+    it('should only send notices for listed IRC channels', function () {
+      const bot = setup(['#IRC']);
+      bot.ircClient.emit('join', '#irc', 'user');
+      bot.ircClient.emit('join', '#otherirc', 'user');
+      bot.sendExactToDiscord.should.have.been.calledOnceWithExactly('#irc', joinText);
+    });
+
+    it('should accept Discord channel names and IDs', function () {
+      const bot = setup(['#discord', '1234']);
+      bot.ircClient.emit('join', '#irc', 'user');
+      bot.ircClient.emit('join', '#channelforid', 'user');
+      bot.ircClient.emit('join', '#otherirc', 'user');
+      bot.sendExactToDiscord.should.have.been.calledTwice;
+      bot.sendExactToDiscord.should.have.been.calledWithExactly('#irc', joinText);
+      bot.sendExactToDiscord.should.have.been.calledWithExactly('#channelforid', joinText);
+    });
+
+    it('should still track users in channels without notices', function () {
+      const bot = setup(['#irc']);
+      bot.ircClient.emit('join', '#otherirc', 'user');
+      bot.ircClient.emit('nick', 'user', 'user2', ['#otherirc']);
+      bot.ircClient.emit('quit', 'user2', 'bye', ['#otherirc']);
+      bot.ircClient.emit('part', '#otherirc', 'user3', 'bye');
+      bot.sendExactToDiscord.should.not.have.been.called;
+      bot.channelUsers['#otherirc'].should.deep.equal(new Set([bot.nickname]));
+    });
+
+    it('should send nick, part and quit notices for listed channels', function () {
+      const bot = setup(['#irc']);
+      bot.ircClient.emit('join', '#irc', 'user');
+      bot.ircClient.emit('nick', 'user', 'user2', ['#irc']);
+      bot.ircClient.emit('quit', 'user2', 'bye', ['#irc']);
+      bot.ircClient.emit('join', '#irc', 'user3');
+      bot.ircClient.emit('part', '#irc', 'user3', 'later');
+      bot.sendExactToDiscord.should.have.been.calledWithExactly('#irc', '*user* is now known as user2');
+      bot.sendExactToDiscord.should.have.been.calledWithExactly('#irc', '*user2* has quit (bye)');
+      bot.sendExactToDiscord.should.have.been.calledWithExactly('#irc', '*user3* has left the channel (later)');
+    });
+
+    it('should send no notices for an empty list', function () {
+      const bot = setup([]);
+      bot.ircClient.emit('join', '#irc', 'user');
+      bot.sendExactToDiscord.should.not.have.been.called;
+    });
+
+    it('should warn about channels that are not in the channel mapping', function () {
+      createBot({ ...config, ircStatusNotices: ['#irc', '#typo'] });
+      this.warnSpy.should.have.been.calledOnceWithExactly('ircStatusNotices channel #typo is not in the channelMapping');
+    });
+  });
+
   it('should not announce itself joining by default', function () {
     const bot = createBot({ ...config, ircStatusNotices: true });
     bot.connect();
