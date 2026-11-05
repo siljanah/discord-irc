@@ -1007,6 +1007,97 @@ describe('Bot', function () {
     this.bot.findWebhook('#ircwebhook').should.not.equal(null);
   });
 
+  context('replies from Discord', function () {
+    const createReferenced = (content, extra = {}) => ({
+      id: 'ref1',
+      content,
+      mentions: { users: [] },
+      author: { username: 'origauthor', id: 'orig id' },
+      attachments: new discord.Collection(),
+      ...extra,
+    });
+
+    const createReply = (base, text, referenced, { cached = true, fetchError = null } = {}) => {
+      const cache = new discord.Collection();
+      if (cached && referenced) cache.set(referenced.id, referenced);
+      return {
+        type: discord.MessageType.Reply,
+        reference: { messageId: 'ref1' },
+        content: text,
+        mentions: { users: [] },
+        channel: { name: 'discord', messages: { cache } },
+        author: { username: 'otherauthor', id: 'not bot id' },
+        guild: base.guild,
+        fetchReference: fetchError
+          ? sinon.stub().rejects(fetchError)
+          : sinon.stub().resolves(referenced),
+      };
+    };
+
+    const prefix = '<\u000304otherauthor\u000f>';
+
+    beforeEach(function () {
+      this.warnSpy = sandbox.stub(logger, 'warn');
+    });
+
+    it('should append the replied-to message from the cache', function () {
+      const message = createReply(this, 'my answer', createReferenced('original message'));
+      this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} my answer (re: original message)`);
+      message.fetchReference.should.not.have.been.called;
+    });
+
+    it('should truncate long replied-to messages', function () {
+      const original = 'Vastatkaa tähän viestiin jooko, tämä on tosi pitkä viesti joka katkeaa';
+      const message = createReply(this, 'answer', createReferenced(original));
+      this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith(
+        '#irc',
+        `${prefix} answer (re: ${original.slice(0, 50).trimEnd()}...)`
+      );
+    });
+
+    it('should fetch the replied-to message when it is not cached', async function () {
+      const message = createReply(this, 'answer', createReferenced('old message'), { cached: false });
+      await this.bot.sendToIRC(message);
+      message.fetchReference.should.have.been.calledOnce;
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} answer (re: old message)`);
+    });
+
+    it('should send the reply without a quote if fetching fails', async function () {
+      const message = createReply(this, 'answer', null, { cached: false, fetchError: new Error('nope') });
+      await this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} answer`);
+      this.warnSpy.should.have.been.called;
+    });
+
+    it('should use the attachment name when quoting an attachment-only message', function () {
+      const attachments = new discord.Collection();
+      attachments.set('1', { name: 'cat.png', url: 'https://image/cat.png' });
+      const message = createReply(this, 'cute', createReferenced('', { attachments }));
+      this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} cute (re: cat.png)`);
+    });
+
+    it('should support a custom reply quote format and length', function () {
+      this.setCustomBot({
+        ...config,
+        replyQuoteLength: 5,
+        format: { replyQuote: '[{$quotedAuthor}: {$quotedText}]' },
+      });
+      const message = createReply(this, 'answer', createReferenced('original message'));
+      this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} answer [origauthor: origi...]`);
+    });
+
+    it('should not quote when replyQuoteLength is 0', function () {
+      this.setCustomBot({ ...config, replyQuoteLength: 0 });
+      const message = createReply(this, 'answer', createReferenced('original message'));
+      this.bot.sendToIRC(message);
+      ClientStub.prototype.say.should.have.been.calledWith('#irc', `${prefix} answer`);
+    });
+  });
+
   context('with enabled Discord webhook', function () {
     this.beforeEach(function () {
       const newConfig = { ...config, webhooks: { '#discord': 'https://discord.com/api/webhooks/id/token' } };
