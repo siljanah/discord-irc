@@ -142,6 +142,31 @@ describe('Reconnecting and error handling', function () {
     });
   });
 
+  context('Discord members', function () {
+    it('should fetch all members of every server when ready', async function () {
+      const guild = this.bot.discord.guilds.cache.first();
+      guild.name = 'Testiserveri';
+      this.bot.discord.emit('clientReady');
+      await this.clock.tickAsync(0);
+      guild.members.fetch.should.have.been.calledOnce;
+      this.infoSpy.should.have.been.calledWith('Fetched 0 members of Discord server Testiserveri');
+    });
+
+    it('should fetch members when added to a new server', async function () {
+      const guild = { name: 'Uusi', members: { fetch: sandbox.stub().resolves(new discord.Collection()) } };
+      this.bot.discord.emit('guildCreate', guild);
+      await this.clock.tickAsync(0);
+      guild.members.fetch.should.have.been.calledOnce;
+    });
+
+    it('should log failed member fetches', async function () {
+      const error = new Error('Members didn\'t arrive in time.');
+      const guild = { name: 'Iso', members: { fetch: sandbox.stub().rejects(error) } };
+      await Bot.fetchGuildMembers(guild);
+      this.errorSpy.should.have.been.calledWith('Could not fetch members of Discord server Iso', error);
+    });
+  });
+
   context('Discord connection events', function () {
     it('should log reconnects once', function () {
       this.bot.discord.emit('shardReconnecting', 0);

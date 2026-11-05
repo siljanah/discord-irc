@@ -49,6 +49,7 @@ export default function createDiscordStub(sendStub) {
       };
       guild.roles = new discord.RoleManager(guild, []);
       guild.members = new discord.GuildMemberManager(guild, []);
+      guild.members.fetch = sinon.stub().callsFake(() => Promise.resolve(guild.members.cache));
       guild.emojis = new discord.GuildEmojiManager(guild, []);
       guild.channels = new discord.GuildChannelManager(guild, []);
       Object.assign(guild, guildData);
