@@ -50,7 +50,7 @@ describe('Bot Events', function () {
   });
 
   it('should log on discord ready event', function () {
-    this.bot.discord.emit('ready');
+    this.bot.discord.emit('clientReady');
     this.infoSpy.should.have.been.calledWithExactly('Connected to Discord');
   });
 
@@ -94,7 +94,7 @@ describe('Bot Events', function () {
       type: 'message'
     };
 
-    this.bot.discord.emit('message', message);
+    this.bot.discord.emit('messageCreate', message);
     this.bot.sendToIRC.should.have.been.calledWithExactly(message);
   });
 

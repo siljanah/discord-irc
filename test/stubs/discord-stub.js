@@ -10,12 +10,8 @@ export default function createDiscordStub(sendStub) {
       this.user = {
         id: 'testid'
       };
+      this.options = discord.Options.createDefault();
       this.channels = new discord.ChannelManager(this, []);
-      this.options = {
-        http: {
-          cdn: ''
-        }
-      };
 
       this.users = new discord.UserManager(this, []);
       this.guilds = new discord.GuildManager(this, []);
@@ -29,10 +25,10 @@ export default function createDiscordStub(sendStub) {
 
     addTextChannel(guild, textChannel) {
       const textChannelData = {
-        type: discord.Constants.ChannelTypes.TEXT,
+        type: discord.ChannelType.GuildText,
         ...textChannel
       };
-      const textChannelObj = new discord.TextChannel(guild, textChannelData);
+      const textChannelObj = new discord.TextChannel(guild, textChannelData, this);
       textChannelObj.send = sendStub;
       const permissions = new discord.Collection();
       textChannelObj.setPermissionStub = (user, perms) => permissions.set(user, perms);
@@ -70,7 +66,7 @@ export default function createDiscordStub(sendStub) {
 
     createRestStub() {
       return {
-        cdn: discord.Constants.Endpoints.CDN(''),
+        cdn: new discord.CDN(),
       };
     }
 

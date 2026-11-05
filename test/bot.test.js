@@ -1021,53 +1021,57 @@ describe('Bot', function () {
     it('pads too short usernames', function () {
       const text = 'message';
       this.bot.sendToDiscord('n', '#irc', text);
-      this.sendWebhookMessageStub.should.have.been.calledWith(text, {
+      this.sendWebhookMessageStub.should.have.been.calledWith({
+        content: text,
         username: 'n_',
         avatarURL: null,
-        disableMentions: 'everyone',
+        allowedMentions: { parse: ['users', 'roles'] },
       });
     });
 
     it('slices too long usernames', function () {
       const text = 'message';
       this.bot.sendToDiscord('1234567890123456789012345678901234567890', '#irc', text);
-      this.sendWebhookMessageStub.should.have.been.calledWith(text, {
+      this.sendWebhookMessageStub.should.have.been.calledWith({
+        content: text,
         username: '12345678901234567890123456789012',
         avatarURL: null,
-        disableMentions: 'everyone',
+        allowedMentions: { parse: ['users', 'roles'] },
       });
     });
 
     it('does not ping everyone if user lacks permission', function () {
       const text = 'message';
-      const permission = discord.Permissions.FLAGS.VIEW_CHANNEL
-        + discord.Permissions.FLAGS.SEND_MESSAGES;
+      const permission = discord.PermissionFlagsBits.ViewChannel
+        + discord.PermissionFlagsBits.SendMessages;
       this.bot.discord.channels.cache.get('1234').setPermissionStub(
         this.bot.discord.user,
-        new discord.Permissions(permission),
+        new discord.PermissionsBitField(permission),
       );
       this.bot.sendToDiscord('nick', '#irc', text);
-      this.sendWebhookMessageStub.should.have.been.calledWith(text, {
+      this.sendWebhookMessageStub.should.have.been.calledWith({
+        content: text,
         username: 'nick',
         avatarURL: null,
-        disableMentions: 'everyone',
+        allowedMentions: { parse: ['users', 'roles'] },
       });
     });
 
     it('sends @everyone messages if the bot has permission to do so', function () {
       const text = 'message';
-      const permission = discord.Permissions.FLAGS.VIEW_CHANNEL
-        + discord.Permissions.FLAGS.SEND_MESSAGES
-        + discord.Permissions.FLAGS.MENTION_EVERYONE;
+      const permission = discord.PermissionFlagsBits.ViewChannel
+        + discord.PermissionFlagsBits.SendMessages
+        + discord.PermissionFlagsBits.MentionEveryone;
       this.bot.discord.channels.cache.get('1234').setPermissionStub(
         this.bot.discord.user,
-        new discord.Permissions(permission),
+        new discord.PermissionsBitField(permission),
       );
       this.bot.sendToDiscord('nick', '#irc', text);
-      this.sendWebhookMessageStub.should.have.been.calledWith(text, {
+      this.sendWebhookMessageStub.should.have.been.calledWith({
+        content: text,
         username: 'nick',
         avatarURL: null,
-        disableMentions: 'none',
+        allowedMentions: undefined,
       });
     });
 
@@ -1092,19 +1096,19 @@ describe('Bot', function () {
       });
 
       it('should match a user\'s username', function () {
-        this.bot.getDiscordAvatar('Nick', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('Nick', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
       });
 
       it('should match a user\'s username case insensitively', function () {
-        this.bot.getDiscordAvatar('nick', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('nick', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
       });
 
       it('should match a user\'s nickname', function () {
-        this.bot.getDiscordAvatar('Different', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('Different', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
       });
 
       it('should match a user\'s nickname case insensitively', function () {
-        this.bot.getDiscordAvatar('different', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('different', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
       });
 
       it('should only return matching users\' avatars', function () {
@@ -1122,7 +1126,7 @@ describe('Bot', function () {
         const userObj = { id: 124, username: 'nickless', avatar: 'nickless-avatar' };
         const memberObj = {};
         this.addUser(userObj, memberObj);
-        this.bot.getDiscordAvatar('nickless', '#irc').should.equal('/avatars/124/nickless-avatar.png?size=128');
+        this.bot.getDiscordAvatar('nickless', '#irc').should.equal('https://cdn.discordapp.com/avatars/124/nickless-avatar.png?size=128');
       });
 
       it('should handle users without avatars', function () {
@@ -1142,10 +1146,10 @@ describe('Bot', function () {
       });
 
       it('should use a matching user\'s avatar', function () {
-        this.bot.getDiscordAvatar('Nick', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
-        this.bot.getDiscordAvatar('nick', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
-        this.bot.getDiscordAvatar('Different', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
-        this.bot.getDiscordAvatar('different', '#irc').should.equal('/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('Nick', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('nick', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('Different', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('different', '#irc').should.equal('https://cdn.discordapp.com/avatars/123/avatarURL.png?size=128');
       });
 
       it('should use fallback without matching user', function () {
@@ -1154,8 +1158,8 @@ describe('Bot', function () {
 
       it('should use fallback when there are multiple matches', function () {
         setupCommonPair(this);
-        this.bot.getDiscordAvatar('diffUser', '#irc').should.equal('/avatars/125/avatarURL.png?size=128');
-        this.bot.getDiscordAvatar('diffNick', '#irc').should.equal('/avatars/124/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('diffUser', '#irc').should.equal('https://cdn.discordapp.com/avatars/125/avatarURL.png?size=128');
+        this.bot.getDiscordAvatar('diffNick', '#irc').should.equal('https://cdn.discordapp.com/avatars/124/avatarURL.png?size=128');
         this.bot.getDiscordAvatar('common', '#irc').should.equal('avatarFrom/common');
       });
 

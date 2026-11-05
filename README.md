@@ -6,8 +6,12 @@
 ![discord-irc](http://i.imgur.com/oI6iCrf.gif)
 
 ## Installation and usage
-**Note**: discord-irc requires Node.js version 12 or newer, as it depends on [discord.js](https://github.com/hydrabolt/discord.js).
+**Note**: discord-irc requires Node.js version 18 or newer, as it depends on [discord.js](https://github.com/discordjs/discord.js) v14.
 Future versions may require newer Node.js versions, though we should support active releases.
+
+The bot uses the privileged **Server Members** and **Message Content** gateway intents.
+Enable both for your bot under *Bot → Privileged Gateway Intents* in the
+[Discord Developer Portal](https://discord.com/developers/applications), otherwise the login will fail.
 
 Before you can run discord-irc you need to create a configuration file by
 following the instructions [here](https://github.com/reactiflux/discord-irc#configuration).
