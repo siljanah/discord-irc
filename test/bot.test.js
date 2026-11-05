@@ -1007,6 +1007,89 @@ describe('Bot', function () {
     this.bot.findWebhook('#ircwebhook').should.not.equal(null);
   });
 
+  context('long messages from Discord', function () {
+    const prefix = '<\u000304otherauthor\u000f> ';
+    const createMessage = (base, text) => ({
+      content: text,
+      mentions: { users: [] },
+      channel: { name: 'discord' },
+      author: { username: 'otherauthor', id: 'not bot id' },
+      guild: base.guild,
+    });
+    const sentLines = () => ClientStub.prototype.say.getCalls().map(call => call.args[1]);
+    const words = count => Array.from({ length: count }, (_, i) => `word${i}`).join(' ');
+
+    it('should put the nickname on every line of a split message', function () {
+      const text = words(200);
+      this.bot.sendToIRC(createMessage(this, text));
+      const lines = sentLines();
+      lines.length.should.be.above(1);
+      lines.forEach(line => line.startsWith(prefix).should.be.true);
+      lines.map(line => line.slice(prefix.length)).join(' ').should.equal(text);
+    });
+
+    it('should keep every line within the IRC line length', function () {
+      this.bot.ircClient.maxLineLength = 497 - 'Reactiflux'.length - 'user@some.host.example'.length;
+      this.bot.ircClient.opt = { messageSplit: 512 };
+      this.bot.sendToIRC(createMessage(this, words(300)));
+      const maxLength = this.bot.ircClient.maxLineLength - '#irc'.length;
+      sentLines().forEach(line => Buffer.byteLength(line, 'utf8').should.be.at.most(maxLength));
+      // Lines should also be reasonably full
+      Buffer.byteLength(sentLines()[0], 'utf8').should.be.above(maxLength - 15);
+    });
+
+    it('should not split multi-byte characters', function () {
+      const text = 'ä😀'.repeat(400);
+      this.bot.sendToIRC(createMessage(this, text));
+      const lines = sentLines();
+      lines.length.should.be.above(1);
+      lines.forEach(line => line.should.not.include('�'));
+      lines.map(line => line.slice(prefix.length)).join('').should.equal(text);
+    });
+
+    it('should not split short messages', function () {
+      this.bot.sendToIRC(createMessage(this, 'short message'));
+      sentLines().should.deep.equal([`${prefix}short message`]);
+    });
+
+    it('should put the reply quote on the last line', function () {
+      const cache = new discord.Collection();
+      cache.set('ref1', {
+        id: 'ref1',
+        content: 'original',
+        mentions: { users: [] },
+        author: { username: 'origauthor', id: 'orig id' },
+      });
+      const message = {
+        ...createMessage(this, words(200)),
+        type: discord.MessageType.Reply,
+        reference: { messageId: 'ref1' },
+        channel: { name: 'discord', messages: { cache } },
+      };
+      this.bot.sendToIRC(message);
+      const lines = sentLines();
+      lines.length.should.be.above(1);
+      lines.forEach(line => line.startsWith(prefix).should.be.true);
+      lines[lines.length - 1].should.match(/ \(re: original\)$/);
+      lines.slice(0, -1).forEach(line => line.should.not.include('(re:'));
+    });
+
+    it('should respect custom formats', function () {
+      this.setCustomBot({ ...config, format: { ircText: '[{$nickname}] {$text} //' } });
+      this.bot.sendToIRC(createMessage(this, words(200)));
+      const lines = sentLines();
+      lines.length.should.be.above(1);
+      lines.forEach(line => line.should.match(/^\[otherauthor\] .* \/\/$/));
+    });
+  });
+
+  it('should split text by bytes at spaces when possible', function () {
+    Bot.splitByBytes('aaa bbb ccc', 7).should.deep.equal(['aaa bbb', 'ccc']);
+    Bot.splitByBytes('aaaaaaaaaa', 4).should.deep.equal(['aaaa', 'aaaa', 'aa']);
+    Bot.splitByBytes('ää ää', 4).should.deep.equal(['ää', 'ää']);
+    Bot.splitByBytes('', 10).should.deep.equal([]);
+  });
+
   context('replies from Discord', function () {
     const createReferenced = (content, extra = {}) => ({
       id: 'ref1',
