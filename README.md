@@ -105,6 +105,7 @@ First you need to create a Discord bot user, which you can do by following the i
       "ircText": "<{$displayUsername}> {$text}", // When sending a message to IRC
       "urlAttachment": "<{$displayUsername}> {$attachmentURL}", // When sending a Discord attachment to IRC
       "replyQuote": "(re: {$quotedText})", // Appended to IRC messages that are replies on Discord, {$quotedAuthor} is also available
+      "ircReaction": "* {$displayUsername} reacted {$emoji} to {$quotedAuthor}: {$quotedText}", // When sending a Discord reaction to IRC (see ircReactions)
       "discord": "**<{$author}>** {$withMentions}", // When sending a message to Discord
       // Other patterns that can be used:
       // {$discordChannel} (e.g. #general)
@@ -113,6 +114,7 @@ First you need to create a Discord bot user, which you can do by following the i
     },
     "ircNickColor": false, // Gives usernames a color in IRC for better readability (on by default)
     "ircNickColors": ['light_blue', 'dark_blue', 'light_red', 'dark_red', 'light_green', 'dark_green', 'magenta', 'light_magenta', 'orange', 'yellow', 'cyan', 'light_cyan'], // Which irc-upd colors to use
+    "ircReactions": true, // Sends reactions added on Discord to IRC (off by default)
     "replyQuoteLength": 50, // How many characters of the replied-to Discord message to show in IRC, 0 disables reply quotes (50 by default)
     "parallelPingFix": true, // Prevents users of both IRC and Discord from being mentioned in IRC when they speak in Discord (off by default)
     // Makes the bot hide the username prefix for messages that start
